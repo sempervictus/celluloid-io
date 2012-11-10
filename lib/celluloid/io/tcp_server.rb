@@ -4,11 +4,11 @@ module Celluloid
   module IO
     # TCPServer with combined blocking and evented support
     class TCPServer
-      extend Forwardable
-      def_delegators :@server, :listen, :sysaccept, :close, :closed?
 
       def initialize(hostname, port)
         @server = ::TCPServer.new(hostname, port)
+        self.extend SingleForwardable
+        eval("self.def_delegators :@server, :#{(@server.methods-self.methods).join(", :")}")
       end
 
       def accept
@@ -35,6 +35,7 @@ module Celluloid
         actor = Thread.current[:actor]
         actor && actor.mailbox.is_a?(Celluloid::IO::Mailbox)
       end
+
     end
   end
 end

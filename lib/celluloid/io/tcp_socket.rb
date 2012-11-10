@@ -6,16 +6,15 @@ module Celluloid
     # TCPSocket with combined blocking and evented support
     class TCPSocket
       include CommonMethods
-      extend Forwardable
-
-      def_delegators :@socket, :read_nonblock, :write_nonblock, :close, :closed?
-      def_delegators :@socket, :addr, :peeraddr, :setsockopt
 
       # Convert a Ruby TCPSocket into a Celluloid::IO::TCPSocket
       def self.from_ruby_socket(ruby_socket)
         # Some hax here, but whatever ;)
         socket = allocate
         socket.instance_variable_set(:@socket, ruby_socket)
+        # Delegate underlying socket methods to this class for better interoperability
+        socket.extend SingleForwardable
+        socket.instance_eval("self.def_delegators :@socket, :#{(@socket.methods-self.methods).join(", :")}")
         socket
       end
 
@@ -43,7 +42,7 @@ module Celluloid
           # Even EventMachine doesn't do async DNS by default o_O
           addrs = Array(DNSResolver.new.resolve(remote_host))
           raise Resolv::ResolvError, "DNS result has no information for #{remote_host}" if addrs.empty?
-          
+
           # Pseudorandom round-robin DNS support :/
           @addr = addrs[rand(addrs.size)]
         end
@@ -68,6 +67,9 @@ module Celluloid
           # We're now connected! Yay exceptions for flow control
           # NOTE: This is the approach the Ruby stdlib docs suggest ;_;
         end
+        # Delegate underlying socket methods to this class for better interoperability
+        self.extend SingleForwardable
+        eval("self.def_delegators :@socket, :#{(@socket.methods-self.methods).join(", :")}")
       end
 
       def to_io

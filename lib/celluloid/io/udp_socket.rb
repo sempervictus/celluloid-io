@@ -2,11 +2,12 @@ module Celluloid
   module IO
     # UDPSockets with combined blocking and evented support
     class UDPSocket
-      extend Forwardable
-      def_delegators :@socket, :bind, :send, :recvfrom_nonblock, :close, :closed?
 
       def initialize
         @socket = ::UDPSocket.new
+        # Delegate underlying socket methods to this class for better interoperability
+        self.extend SingleForwardable
+        eval("self.def_delegators :@socket, :#{(@socket.methods-self.methods).join(", :")}")
       end
 
       # Are we inside of a Celluloid::IO actor?
